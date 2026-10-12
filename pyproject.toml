@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mca-editor"
+version = "0.1.0"
+description = "Strict, version-aware Minecraft Java Anvil region editor"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=7", "nbtlib>=2.0.4"]
+
+[project.scripts]
+mca-editor = "mca_editor.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["mca_editor*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
