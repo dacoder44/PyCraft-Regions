@@ -1,0 +1,4 @@
+# The library uses only the Python standard library.
+# Test dependencies (nbtlib is an independent round-trip oracle):
+pytest>=7
+nbtlib>=2.0.4
