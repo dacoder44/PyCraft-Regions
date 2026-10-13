@@ -5,8 +5,10 @@ import json
 import sys
 from pathlib import Path
 
+from .discovery import discover_servers
 from .exceptions import MCAError
 from .region import Region
+from .world import World
 
 
 def _corner(text: str) -> tuple[int, int, int]:
@@ -31,6 +33,16 @@ def parser() -> argparse.ArgumentParser:
         description="Inspect and safely edit Minecraft Java Anvil regions"
     )
     commands = result.add_subparsers(dest="command", required=True)
+    commands.add_parser(
+        "discover-servers", help="List visible local dedicated-server candidates (read-only)"
+    )
+    world_info = commands.add_parser(
+        "world-info", help="Index dimension region files without stopping a server"
+    )
+    world_info.add_argument("directory", type=Path)
+    world_info.add_argument(
+        "--eager", action="store_true", help="Parse every indexed region, not just file names"
+    )
     for name in ("info", "chunks", "validate", "get-block", "set-block", "fill"):
         command = commands.add_parser(name)
         command.add_argument("file", type=Path)
@@ -85,6 +97,51 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
+        if args.command == "discover-servers":
+            discovery = discover_servers()
+            print(
+                json.dumps(
+                    {
+                        "servers": [
+                            {
+                                "pid": server.pid,
+                                "create_time": server.create_time,
+                                "server_directory": str(server.server_directory),
+                                "world_path": str(server.world_path) if server.world_path else None,
+                                "rcon_port": server.rcon_port,
+                                "evidence": server.evidence,
+                                "warnings": server.warnings,
+                            }
+                            for server in discovery.servers
+                        ],
+                        "warnings": discovery.warnings,
+                    },
+                    indent=2,
+                )
+            )
+            return 0
+        if args.command == "world-info":
+            world = World(args.directory).load(eager=args.eager)
+            print(
+                json.dumps(
+                    {
+                        "world": str(world.path),
+                        "snapshot_only": True,
+                        "regions": [
+                            {
+                                "dimension": f.dimension,
+                                "x": f.region_x,
+                                "z": f.region_z,
+                                "path": str(f.path),
+                                "supported_dimension": f.supported_dimension,
+                            }
+                            for f in world.region_files
+                        ],
+                    },
+                    indent=2,
+                )
+            )
+            return 0
         region = Region(
             args.file,
             region_coords=tuple(args.region) if args.region else None,

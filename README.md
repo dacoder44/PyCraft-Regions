@@ -3,13 +3,14 @@
 A Python library and CLI for **Minecraft Java Edition Anvil (`.mca`) files**.
 Reads real region headers, decompresses chunks, preserves typed NBT, decodes
 version-specific palettes, edits individual block states, and writes validated
-region files with rebuilt sector allocations. No runtime dependencies; Python
-**3.10+**.
+region files with rebuilt sector allocations. Python **3.10+**; `psutil` provides
+local dedicated-server discovery and process verification.
 
-**Stop Minecraft/the server before editing. Work on a copy of the world.** This
-is an offline block-storage editor, not a terrain generator or Minecraft's game
-engine. See the compatibility and metadata policies below before using it on a
-world you care about.
+**Work on a copy of the world.** The low-level `Region` API requires the server
+to be stopped before editing. The new `World` API can discover local dedicated
+servers, queue edits, gracefully stop the **server (not the client)**, reload its
+final save, write with backups, and optionally restart the server. Neither API
+simulates Minecraft gameplay. See the compatibility and metadata policies below.
 
 ## Install
 
@@ -23,8 +24,38 @@ python -m pip install -e '.[test]'        # additionally install pytest + nbtlib
 ```
 
 `requirements.txt` contains the test dependencies as an alternative. The actual
-library uses only the Python standard library. `nbtlib` is an independent test
-oracle, not the production codec.
+region codec uses the Python standard library; `psutil` is required for
+server/process management. `nbtlib` is an independent test oracle, not the
+production codec.
+
+## World discovery and managed server editing (new)
+
+See **[Dedicated-server world API](docs/SERVER_WORLDS.md)** for setup, RCON,
+optional restart, multi-region backups, and safety/OS limitations.
+
+```python
+from mca_editor import World
+
+scan = World.discover_servers()  # Local dedicated-server candidates
+for server in scan.servers:
+    print(server.pid, server.world_path, server.warnings)
+
+world = World("/srv/minecraft/world").load(eager=True)  # Read every region
+print(world.get_block(-1, 64, 0))
+world.set_block(-1, 64, 0, "minecraft:diamond_block")  # Queue only
+report = world.save()  # Requires an offline, lockable world
+```
+
+For a **running** server, bind an explicitly selected `RconServer` controller
+with authorized local credentials; `world.save(restart=True)` then handles
+shutdown, post-shutdown reload, safe save and opt-in server launch. It refuses
+to write if shutdown or world locking cannot be confirmed. It never kills or
+restarts the client. Live reads are disk snapshots, not unflushed game memory.
+
+```sh
+python main.py discover-servers
+python main.py world-info /srv/minecraft/world --eager
+```
 
 ## Python API
 
@@ -315,6 +346,9 @@ offline once test dependencies are installed.
 
 ## Architecture and format references
 
+* `world.py`, `discovery.py`, `server.py`, `world_lock.py`: dimension indexing,
+  queued edits, local server discovery, RCON lifecycle control and guarded
+  multi-region saves. See the dedicated-server API guide.
 * `region.py`: header/location validation, compression records, world-coordinate
   API, cuboid preflight, atomic save and validation.
 * `chunk.py`, `versions.py`: release allowlist, old/new schema dispatch, dimension

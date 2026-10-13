@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mca-editor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Strict, version-aware Minecraft Java Anvil region editor"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-dependencies = []
+dependencies = ["psutil>=6.0"]
 
 [project.optional-dependencies]
 test = ["pytest>=7", "nbtlib>=2.0.4"]
